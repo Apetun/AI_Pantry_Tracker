@@ -192,7 +192,7 @@ export default function Component() {
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {filteredItems.map((item, index) => (
-                  <Card key={index}>
+                  <Card key={index} >
                     <CardContent className="grid gap-4">
                       {item.image ? (
                         <img
@@ -200,7 +200,7 @@ export default function Component() {
                           alt={item.name}
                           width={200}
                           height={200}
-                          className="rounded-md object-cover aspect-square"
+                          className="rounded-md object-cover aspect-square w-full h-full"
                         />
                       ) : (
                         <div className="rounded-md bg-muted/40 aspect-square flex items-center justify-center">
