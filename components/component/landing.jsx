@@ -28,6 +28,7 @@ export default function Component() {
     image: null,
     quantity: 0,
   });
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -41,8 +42,6 @@ export default function Component() {
     fetchItems();
   }, []);
 
-  const [searchTerm, setSearchTerm] = useState("");
-
   const handleInputChange = (e) => {
     setNewItem({
       ...newItem,
@@ -51,23 +50,21 @@ export default function Component() {
   };
 
   const handleImageUpload = (e) => {
-    setNewItem({
-      ...newItem,
-      image: e.target.files[0],
-    });
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewItem({
+          ...newItem,
+          image: reader.result, // Base64 encoded image
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleAddItem = async () => {
     try {
-      let imageUrl = null;
-
-      // Check if an image is uploaded
-      if (newItem.image) {
-        const imageRef = ref(storage, `images/${newItem.image.name}`);
-        const snapshot = await uploadBytes(imageRef, newItem.image);
-        imageUrl = await getDownloadURL(snapshot.ref);
-      }
-
       const existingItem = items.find((item) => item.name === newItem.name);
 
       if (existingItem) {
@@ -86,10 +83,10 @@ export default function Component() {
       } else {
         const docRef = await addDoc(collection(db, "inventory"), {
           name: newItem.name,
-          image: imageUrl,
+          image: newItem.image,
           quantity: newItem.quantity,
         });
-        setItems([...items, { ...newItem, id: docRef.id, image: imageUrl }]);
+        setItems([...items, { ...newItem, id: docRef.id }]);
       }
 
       setNewItem({
@@ -102,28 +99,18 @@ export default function Component() {
     }
   };
 
-  const handleDeleteItem = async (id, imageUrl) => {
+  const handleDeleteItem = async (id) => {
     try {
-      // Delete the item from Firestore
       await deleteDoc(doc(db, "inventory", id));
-
-      // Delete the image from Firebase Storage, if it exists
-      if (imageUrl) {
-        const imageRef = ref(storage, imageUrl);
-        await deleteObject(imageRef);
-      }
-
-      // Update local state to remove the deleted item
       setItems(items.filter((item) => item.id !== id));
     } catch (error) {
       console.error("Error deleting item: ", error);
     }
   };
 
-  const filteredItems = items.filter(item =>
+  const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
+  );
 
   return (
     <div className="grid min-h-screen w-full bg-background">
