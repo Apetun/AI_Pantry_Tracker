@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection,
   getDocs,
@@ -20,6 +20,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Webcam from "react-webcam";
 
 export default function Component() {
   const [items, setItems] = useState([]);
@@ -29,6 +30,8 @@ export default function Component() {
     quantity: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCamera, setShowCamera] = useState(false);
+  const webcamRef = useRef(null);
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -61,6 +64,15 @@ export default function Component() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleCapture = () => {
+    const imageSrc = webcamRef.current.getScreenshot();
+    setNewItem({
+      ...newItem,
+      image: imageSrc,
+    });
+    setShowCamera(false);
   };
 
   const handleAddItem = async () => {
@@ -154,11 +166,23 @@ export default function Component() {
                         variant="outline"
                         size="icon"
                         className="h-10 w-10"
+                        onClick={() => setShowCamera(!showCamera)}
                       >
                         <CameraIcon className="h-5 w-5" />
                         <span className="sr-only">Take Photo</span>
                       </Button>
                     </div>
+                    {showCamera && (
+                      <div className="grid gap-2">
+                        <Webcam
+                          audio={false}
+                          ref={webcamRef}
+                          screenshotFormat="image/jpeg"
+                          className="rounded-md"
+                        />
+                        <Button onClick={handleCapture}>Capture</Button>
+                      </div>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="quantity">Quantity</Label>
@@ -254,30 +278,11 @@ function BoxIcon(props) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className="lucide lucide-box"
     >
-      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-      <path d="m3.3 7 8.7 5 8.7-5" />
-      <path d="M12 22V12" />
-    </svg>
-  );
-}
-
-function CameraIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-      <circle cx="12" cy="13" r="3" />
+      <path d="M21 16V8a2 2 0 0 0-1-1.73L13 2.8a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4.47a2 2 0 0 0 2 0l7-4.47A2 2 0 0 0 21 16z"></path>
+      <polyline points="3.29 7 12 12 20.71 7"></polyline>
+      <line x1="12" y1="22" x2="12" y2="12"></line>
     </svg>
   );
 }
@@ -295,11 +300,33 @@ function PackageIcon(props) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className="lucide lucide-package"
     >
-      <path d="M16.5 9.4 7.55 4.24" />
-      <path d="m21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <path d="M3.29 7 12 12.67 20.71 7" />
-      <path d="M12 22V12.67" />
+      <path d="M16.5 9.4 7.55 4.24"></path>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4.2a2 2 0 0 0-2 0l-7 4.2A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4.2a2 2 0 0 0 2 0l7-4.2A2 2 0 0 0 21 16z"></path>
+      <polyline points="3.29 7 12 12 20.71 7"></polyline>
+      <line x1="12" y1="22" x2="12" y2="12"></line>
+    </svg>
+  );
+}
+
+function CameraIcon(props) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="lucide lucide-camera"
+    >
+      <path d="M14.5 3 16 5h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5l1.5-2h5Z"></path>
+      <circle cx="12" cy="13" r="3"></circle>
     </svg>
   );
 }
@@ -317,12 +344,10 @@ function TrashIcon(props) {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className="lucide lucide-trash"
     >
-      <path d="M3 6h18" />
-      <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6" />
-      <path d="M14 11v6" />
-      <path d="M15 6V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v2" />
+      <polyline points="3 6 5 6 21 6"></polyline>
+      <path d="M19 6V20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6M5 6l1-2h12l1 2"></path>
     </svg>
   );
 }
