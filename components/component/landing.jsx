@@ -1,7 +1,10 @@
 "use client";
 
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { useState, useEffect, useRef } from "react";
 import {
+  getFirestore,
   collection,
   getDocs,
   addDoc,
@@ -9,13 +12,8 @@ import {
   doc,
   deleteDoc,
 } from "firebase/firestore";
-import {
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+
+import { db } from "@/lib/firebase";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -31,6 +29,9 @@ export default function Component() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [showCamera, setShowCamera] = useState(false);
+
+  const [showRecipe, setShowRecipe] = useState(false); // Define showRecipe state
+  const [recipeContent, setRecipeContent] = useState(""); // Store the recipe content
   const webcamRef = useRef(null);
 
   useEffect(() => {
@@ -44,6 +45,58 @@ export default function Component() {
     };
     fetchItems();
   }, []);
+
+  const generateRecipe = async (ingredients) => {
+    const OPENROUTER_API_KEY = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+    const YOUR_SITE_URL = "";
+    const YOUR_SITE_NAME = "";
+    try {
+      const response = await fetch(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "HTTP-Referer": `${YOUR_SITE_URL}`, // Optional, for including your app on openrouter.ai rankings.
+            "X-Title": `${YOUR_SITE_NAME}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "meta-llama/llama-3.1-8b-instruct:free",
+            messages: [
+              {
+                role: "user",
+                content: `You are 'AI'sle an AI assistant for generating recipes given a list of items in the pantry,
+                          If the ingredients given are valid generate a response otherwise suggest fixes for ingredients,
+                          Generate a recipe using the following ingredients: ${ingredients.join(
+                            ", "
+                          )}`,
+              },
+            ],
+
+            top_p: 0.5,
+            temperature: 0.5,
+          }),
+        }
+      );
+
+      const data = await response.json();
+      const generatedRecipe = data.choices[0].message.content;
+
+      const parsedOutput = marked(generatedRecipe);
+      const sanitizedOutput = DOMPurify.sanitize(parsedOutput);
+
+      setRecipeContent(sanitizedOutput); // Set the sanitized recipe content
+      setShowRecipe(true); // Set showRecipe to true to display the recipe
+    } catch (error) {
+      console.error("Error generating recipe:", error);
+    }
+  };
+
+  const handleSuggestRecipes = () => {
+    const ingredientNames = filteredItems.map((item) => item.name);
+    generateRecipe(ingredientNames);
+  };
 
   const handleInputChange = (e) => {
     setNewItem({
@@ -211,12 +264,14 @@ export default function Component() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full max-w-xs"
                   />
-                  <Button variant="outline">Suggest Recipes</Button>
+                  <Button variant="outline" onClick={handleSuggestRecipes}>
+                    Suggest Recipes
+                  </Button>
                 </div>
               </div>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {filteredItems.map((item, index) => (
-                  <Card key={index} >
+                  <Card key={index} className="overflow-hidden">
                     <CardContent className="grid gap-4">
                       {item.image ? (
                         <img
@@ -224,7 +279,7 @@ export default function Component() {
                           alt={item.name}
                           width={200}
                           height={200}
-                          className="rounded-md object-cover aspect-square w-full h-full"
+                          className="rounded-md object-cover aspect-square"
                         />
                       ) : (
                         <div className="rounded-md bg-muted/40 aspect-square flex items-center justify-center">
@@ -259,6 +314,18 @@ export default function Component() {
               </div>
             </div>
           </div>
+
+          {showRecipe && (
+            <div>
+              <h2 className="text-xl font-bold tracking-tight">
+                Generated Recipe
+              </h2>
+              <div
+                className="prose mt-4"
+                dangerouslySetInnerHTML={{ __html: recipeContent }}
+              />
+            </div>
+          )}
         </div>
       </main>
     </div>
