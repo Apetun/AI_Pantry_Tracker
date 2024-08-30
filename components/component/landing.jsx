@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Webcam from "react-webcam";
 
-export default function Component() {
+export default function Landing() {
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState({
     name: "",
@@ -179,6 +179,14 @@ export default function Component() {
 
   return (
     <div className="grid min-h-screen w-full bg-background">
+      <header
+        className="flex items-center justify-between px-4 py-2 bg-primary text-primary-foreground h-20">
+        <div>Inventory Management</div>
+        <Button variant="ghost" size="icon" className="text-primary-foreground">
+          <LogOutIcon className="h-5 w-5" />
+          <span className="sr-only">Log Out</span>
+        </Button>
+      </header>
       <main className="container mx-auto px-4 py-8 md:px-6 md:py-12">
         <div className="grid gap-8">
           <div>
@@ -272,7 +280,7 @@ export default function Component() {
               <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {filteredItems.map((item, index) => (
                   <Card key={index} className="overflow-hidden">
-                    <CardContent className="grid gap-4">
+                    <CardContent className="grid gap-4 sm:justify-center">
                       {item.image ? (
                         <img
                           src={item.image}
@@ -417,4 +425,25 @@ function TrashIcon(props) {
       <path d="M19 6V20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6M5 6l1-2h12l1 2"></path>
     </svg>
   );
+}
+
+function LogOutIcon(props) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" x2="9" y1="12" y2="12" />
+    </svg>
+  )
 }
