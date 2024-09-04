@@ -44,7 +44,7 @@ export function Main() {
       <header className="container mx-auto flex h-[60px] items-center justify-between px-4 md:px-6">
         <Link href="#" className="flex items-center gap-2" prefetch={false}>
           <ShoppingBasketIcon className="h-6 w-6" />
-          <span className="font-bold">'AI'sle</span>
+          <span className="font-bold">&apos;AI&apos;sle</span>
         </Link>
         <div className="flex items-center gap-2">
           <Link
@@ -57,7 +57,7 @@ export function Main() {
       </header>
       <main className="container mx-auto flex flex-col items-center justify-center gap-8 px-4 py-12 md:px-6 md:py-24">
         <div className="flex flex-col items-center text-center">
-          <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">Welcome to 'AI'sle</h1>
+          <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">Welcome to &apos;AI&apos;sle</h1>
           <p className="mt-4 max-w-[600px] text-muted-foreground md:text-xl">
             Your AI-powered kitchen assistant. Keep tabs on your pantry, plan meals, and create custom recipes that fit your allergies and calorie goals.
           </p>
