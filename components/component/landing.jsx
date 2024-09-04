@@ -13,14 +13,20 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 
-import { db } from "@/lib/firebase";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth, db } from "@/lib/firebase";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Webcam from "react-webcam";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import * as mobilenet from "@tensorflow-models/mobilenet";
+import "@tensorflow/tfjs-backend-webgl";
 
 export default function Landing() {
+  const [user] = useAuthState(auth);
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState({
     name: "",
@@ -29,10 +35,12 @@ export default function Landing() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [showCamera, setShowCamera] = useState(false);
+  const [isCaptured, setIsCaptured] = useState(false);
 
   const [showRecipe, setShowRecipe] = useState(false); // Define showRecipe state
   const [recipeContent, setRecipeContent] = useState(""); // Store the recipe content
   const webcamRef = useRef(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -112,7 +120,7 @@ export default function Landing() {
       reader.onloadend = () => {
         setNewItem({
           ...newItem,
-          image: reader.result, // Base64 encoded image
+          image: reader.result,
         });
       };
       reader.readAsDataURL(file);
@@ -125,7 +133,26 @@ export default function Landing() {
       ...newItem,
       image: imageSrc,
     });
-    setShowCamera(false);
+
+    setIsCaptured(true);
+    setShowCamera(false)
+  };
+
+  const handleClassify = async () => {
+    console.log("Classifying the image...");
+
+    const img = new Image();
+
+    img.src = newItem.image;
+
+    // Load the model.
+    const model = await cocoSsd.load();
+
+    // Classify the image.
+    const predictions = await model.detect(img);
+
+    console.log("Predictions: ");
+    console.log(predictions);
   };
 
   const handleAddItem = async () => {
@@ -145,6 +172,7 @@ export default function Landing() {
               : item
           )
         );
+        setIsCaptured(false);
       } else {
         const docRef = await addDoc(collection(db, "inventory"), {
           name: newItem.name,
@@ -159,6 +187,7 @@ export default function Landing() {
         image: null,
         quantity: 0,
       });
+      setIsCaptured(false);
     } catch (error) {
       console.error("Error adding item: ", error);
     }
@@ -177,12 +206,20 @@ export default function Landing() {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (!user) {
+    return router.push("/");
+  }
+
   return (
     <div className="grid min-h-screen w-full bg-background">
-      <header
-        className="flex items-center justify-between px-4 py-2 bg-primary text-primary-foreground h-20">
+      <header className="flex items-center justify-between px-4 py-2 bg-primary text-primary-foreground h-20">
         <div>Inventory Management</div>
-        <Button variant="ghost" size="icon" className="text-primary-foreground">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-primary-foreground"
+          onClick={() => signOut}
+        >
           <LogOutIcon className="h-5 w-5" />
           <span className="sr-only">Log Out</span>
         </Button>
@@ -223,11 +260,25 @@ export default function Landing() {
                         accept="image/*"
                         onChange={handleImageUpload}
                       />
+                     
+                      
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-10 w-10"
-                        onClick={() => setShowCamera(!showCamera)}
+                      >
+                        <StarIcon className="h-5 w-5" />
+                        <span className="sr-only">Classify</span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className={`h-10 w-10 ${isCaptured ? 'bg-primary/90' : ''}`}
+                        onClick={() => {
+                          setShowCamera(!showCamera);
+                          setIsCaptured(false); 
+                        }}
                       >
                         <CameraIcon className="h-5 w-5" />
                         <span className="sr-only">Take Photo</span>
@@ -235,13 +286,20 @@ export default function Landing() {
                     </div>
                     {showCamera && (
                       <div className="grid gap-2">
-                        <Webcam
-                          audio={false}
-                          ref={webcamRef}
-                          screenshotFormat="image/jpeg"
-                          className="rounded-md"
-                        />
-                        <Button onClick={handleCapture}>Capture</Button>
+                        
+                          <Webcam
+                            audio={false}
+                            ref={webcamRef}
+                            screenshotFormat="image/jpeg"
+                            className="rounded-md"
+                          />
+                        
+
+                        <Button
+                          onClick={handleCapture}
+                        >
+                          Capture
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -406,6 +464,27 @@ function CameraIcon(props) {
   );
 }
 
+function StarIcon(props) {
+  return(<svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="lucide lucide-camera"
+  >
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+    />
+  </svg>);
+}
+
 function TrashIcon(props) {
   return (
     <svg
@@ -445,5 +524,5 @@ function LogOutIcon(props) {
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" x2="9" y1="12" y2="12" />
     </svg>
-  )
+  );
 }

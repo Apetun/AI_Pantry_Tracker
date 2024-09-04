@@ -62,7 +62,7 @@ export function Main() {
             Your AI-powered kitchen assistant. Keep tabs on your pantry, plan meals, and create custom recipes that fit your allergies and calorie goals.
           </p>
         </div>
-        <Card className="w-2/5">
+        <Card className="w-auto">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl">Sign In</CardTitle>
             <CardDescription>Enter your email and password to access your pantry.</CardDescription>
