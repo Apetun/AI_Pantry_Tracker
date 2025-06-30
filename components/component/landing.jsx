@@ -10,11 +10,18 @@ import {
   addDoc,
   updateDoc,
   doc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
   deleteDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 
+import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
+
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, storage } from "@/lib/firebase";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -41,18 +48,19 @@ export default function Landing() {
   const [recipeContent, setRecipeContent] = useState(""); // Store the recipe content
   const webcamRef = useRef(null);
   const router = useRouter();
-
+  
   useEffect(() => {
-    const fetchItems = async () => {
-      const querySnapshot = await getDocs(collection(db, "inventory"));
-      const itemsList = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setItems(itemsList);
-    };
-    fetchItems();
-  }, []);
+    if (!user) return router.push("/");
+    const itemsQuery = query(
+    collection(db, "inventory"),
+    where("userId", "==", user.uid),
+    orderBy("createdAt", "desc")
+  );
+  const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
+    setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
+  return () => unsubscribe();
+  }, [user, router]);
 
   const generateRecipe = async (ingredients) => {
     const OPENROUTER_API_KEY = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
@@ -155,43 +163,81 @@ export default function Landing() {
     console.log(predictions);
   };
 
-  const handleAddItem = async () => {
-    try {
-      const existingItem = items.find((item) => item.name === newItem.name);
+// inside landing.jsx, above handleAddItem
+const MAX_FIRESTORE_BYTES = 900_000; // a bit under 1 048 487
 
-      if (existingItem) {
-        const updatedQuantity =
-          parseInt(existingItem.quantity, 10) + parseInt(newItem.quantity, 10);
-        const itemDoc = doc(db, "inventory", existingItem.id);
-        await updateDoc(itemDoc, { quantity: updatedQuantity });
+// takes a DataURL, returns a smaller one
+async function compressDataUrl(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = dataUrl;
+    img.onload = () => {
+      // start by scaling to 50% and quality .7
+      const scale = 0.5;
+      const quality = 0.7;
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      let compressed = canvas.toDataURL("image/jpeg", quality);
 
-        setItems(
-          items.map((item) =>
-            item.name === newItem.name
-              ? { ...item, quantity: updatedQuantity }
-              : item
-          )
-        );
-        setIsCaptured(false);
-      } else {
-        const docRef = await addDoc(collection(db, "inventory"), {
-          name: newItem.name,
-          image: newItem.image,
-          quantity: newItem.quantity,
-        });
-        setItems([...items, { ...newItem, id: docRef.id }]);
+      // if still too big, drop quality further in 0.1 steps
+      let q = quality;
+      while (compressed.length > MAX_FIRESTORE_BYTES && q > 0.2) {
+        q -= 0.1;
+        compressed = canvas.toDataURL("image/jpeg", q);
       }
+      resolve(compressed);
+    };
+  });
+}
 
-      setNewItem({
-        name: "",
-        image: null,
-        quantity: 0,
-      });
-      setIsCaptured(false);
-    } catch (error) {
-      console.error("Error adding item: ", error);
+const handleAddItem = async () => {
+  try {
+    // Normalize & lookup existing item
+    const nameKey = newItem.name.trim().toLowerCase();
+    const existing = items.find(
+      it => it.name.trim().toLowerCase() === nameKey
+    );
+    const qtyToAdd = Number(newItem.quantity) || 0;
+
+    // Prepare image data (compress if needed)
+    let imgData = newItem.image;
+    if (imgData && imgData.length > MAX_FIRESTORE_BYTES) {
+      imgData = await compressDataUrl(imgData);
     }
-  };
+
+    if (existing) {
+      // Update quantity and, if a new image was provided, override the old image
+      const updatedQty = existing.quantity + qtyToAdd;
+      const itemRef = doc(db, "inventory", existing.id);
+      const updates = { quantity: updatedQty };
+      if (newItem.image) {
+        updates.image = imgData;
+      }
+      await updateDoc(itemRef, updates);
+    } else {
+      // Create a new document with image
+      await addDoc(collection(db, "inventory"), {
+        name: newItem.name.trim(),
+        image: imgData || "", 
+        quantity: qtyToAdd,
+        userId: user.uid,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    // Reset form
+    setNewItem({ name: "", image: null, quantity: 0 });
+    setIsCaptured(false);
+  } catch (err) {
+    console.error("Error adding item:", err);
+  }
+};
+
 
   const handleDeleteItem = async (id) => {
     try {
@@ -218,7 +264,10 @@ export default function Landing() {
           variant="ghost"
           size="icon"
           className="text-primary-foreground"
-          onClick={() => signOut}
+           onClick={async () => {
+       await signOut(auth);    
+       router.push("/");        
+     }}
         >
           <LogOutIcon className="h-5 w-5" />
           <span className="sr-only">Log Out</span>
